@@ -45,7 +45,7 @@ const TictacThreeSocketIo = (server) => {
     },
   });
 
-  const rooms = {};
+  const activeRooms = {};
 
   io.on('connection', (socket) => {
     console.log('A user connectedssss:', socket.id);
