@@ -1,18 +1,17 @@
-const express = require("express");
+    
+
+
+
+      const express = require("express");
 const http = require("http");
 const cors = require("cors");
 const { Server } = require("socket.io");
 const socketIO = require('socket.io');
 const OdinCircledbModel = require('./models/odincircledb');
+const BetModel = require('./models/BetModel');
 const WinnerModel = require('./models/WinnerModel');
-// const BetModelRock = require('./models/BetModelRock');
-// const BetCashModel = require('./models/BetCashModel');
-const Device = require('./models/Device');
+const LoserModel = require('./models/LoserModel');
 const mongoose = require('mongoose');
-
-const { Expo } = require('expo-server-sdk'); // Import expo-server-sdk
-
-const expo = new Expo(); // Initialize Expo SDK
 
 require("dotenv").config();
 
@@ -36,21 +35,20 @@ mongoose.connect(uri, {
 }).then(() => console.log("MongoDB connected"))
     .catch(err => console.error("MongoDB connection error:", err));
 
-    
-const TictacThreeSocketIo = (server) => {
+    const TictacSocketIo = (server) => {
   const io = new Server(server, {
     cors: {
       origin: "*", // Replace with your frontend's URL if needed
       methods: ["GET", "POST"],
     },
   });
-
+  
   const activeRooms = {};
 
   io.on('connection', (socket) => {
-    console.log('A user connectedssss:', socket.id);
-  
-    socket.on('joinRoom', async ({ playerName, roomId, userId, totalBet, expoPushToken }) => {
+    console.log('A user connected:', socket.id);
+    
+      socket.on('joinRoom', async ({ playerName, roomId, userId, totalBet, expoPushToken }) => {
       // Validate input
       if (!playerName || !userId || !roomId || !totalBet) {
         return socket.emit('invalidJoin', 'Player name, userId, roomId, and bet amount are required');
@@ -143,60 +141,11 @@ const TictacThreeSocketIo = (server) => {
         }
       }
   });
-  
-
-
-// Listen for incoming chat messages from clients
-
-
-        // Function to send push notifications
-async function sendPushNotification(expoPushToken, title, body, data = {}) {
-  try {
-    // Validate if the token is a valid Expo push token
-    if (!Expo.isExpoPushToken(expoPushToken)) {
-      console.error(
-        `Push token ${expoPushToken} is not a valid Expo push token`
-      );
-      return;
-    }
-
-    // Create the notification payload
-    const message = {
-      to: expoPushToken,
-      sound: 'default',
-      title,
-      body,
-      data,
-      icon: 'https://as1.ftcdn.net/v2/jpg/03/06/02/06/1000_F_306020649_Kx1nsIMTl9FKwF0jyYruImTY5zV6mnzw.jpg', // Include the icon if required
-    };
-
-    console.log('Sending notification with message:', message);
-
-    // Split messages into chunks for sending
-    const chunks = expo.chunkPushNotifications([message]);
-    const tickets = [];
-
-    // Send the notification in chunks
-    for (let chunk of chunks) {
-      try {
-        let ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-        tickets.push(...ticketChunk);
-      } catch (error) {
-        console.error('Error sending push notification chunk:', error);
-      }
-    }
-
-    console.log('Push notification tickets:', tickets);
-  } catch (error) {
-    console.error('Error sending push notification:', error);
-  }
-}
-
  
 
 
-// Function to send notifications to registered devices
-async function sendNotificationsToDevices(title, message) {
+// // Function to send notifications to registered devices
+      async function sendNotificationsToDevices(title, message) {
   try {
     // Fetch all devices from the database
     const devices = await Device.find({});
@@ -251,6 +200,48 @@ async function sendNotificationsToDevices(title, message) {
   }
 }
 
+      async function sendPushNotification(expoPushToken, title, body, data = {}) {
+  try {
+    // Validate if the token is a valid Expo push token
+    if (!Expo.isExpoPushToken(expoPushToken)) {
+      console.error(
+        `Push token ${expoPushToken} is not a valid Expo push token`
+      );
+      return;
+    }
+
+    // Create the notification payload
+    const message = {
+      to: expoPushToken,
+      sound: 'default',
+      title,
+      body,
+      data,
+      icon: 'https://as1.ftcdn.net/v2/jpg/03/06/02/06/1000_F_306020649_Kx1nsIMTl9FKwF0jyYruImTY5zV6mnzw.jpg', // Include the icon if required
+    };
+
+    console.log('Sending notification with message:', message);
+
+    // Split messages into chunks for sending
+    const chunks = expo.chunkPushNotifications([message]);
+    const tickets = [];
+
+    // Send the notification in chunks
+    for (let chunk of chunks) {
+      try {
+        let ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+        tickets.push(...ticketChunk);
+      } catch (error) {
+        console.error('Error sending push notification chunk:', error);
+      }
+    }
+
+    console.log('Push notification tickets:', tickets);
+  } catch (error) {
+    console.error('Error sending push notification:', error);
+  }
+}
+
 function generateUniqueRoomName() {
   return Math.random().toString(36).substr(2, 9); // Generate a random alphanumeric string
 }
@@ -277,6 +268,20 @@ const startTurnTimer = (roomId) => {
     startTurnTimer(roomId);
   }, 3000);
 };
+
+
+// Listen for incoming chat messages from clients
+
+
+   // Add this inside the io.on('connection', ...) block
+   socket.on('chatText', ({ roomId, playerName, text }) => {
+    // Log the data being received
+    console.log(`Received chat message from ${playerName} in room ${roomId}: ${text}`);
+
+    // Broadcast the chat text to all clients in the room
+    io.to(roomId).emit('receiveText', { playerName, text });
+  });
+      
 
 socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
   const room = activeRooms[roomId];
@@ -344,6 +349,114 @@ socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
 });
 
 
+
+
+// Handle socket disconnection
+socket.on('disconnect', async () => {
+  console.log('A user disconnected:', socket.id);
+
+  for (const roomId in rooms) {
+    const room = rooms[roomId];
+    const playerIndex = room.players.findIndex(player => player.id === socket.id);
+
+    if (playerIndex !== -1) {
+      const disconnectedPlayer = room.players[playerIndex];
+      console.log(`Player ${disconnectedPlayer.name} (ID: ${socket.id}) disconnected from room ${roomId}`);
+
+      room.players.splice(playerIndex, 1); // Remove the player from the room
+      io.to(roomId).emit('message', `${disconnectedPlayer.name} has left the game`);
+
+      console.log(`Remaining players in room ${roomId}:`, room.players);
+
+      if (room.players.length === 0) {
+        delete rooms[roomId]; // Delete room if empty
+        console.log(`Room ${roomId} deleted from memory.`);
+      } else {
+        // Determine the winner
+        const winnerData = determineOverallWinner(roomId);
+
+        let overallWinnerMessage = "Game ended with no winner.";
+        if (winnerData && winnerData.winnerId) {
+          const remainingPlayer = room.players[0];
+          overallWinnerMessage = `${remainingPlayer.name} wins by default!`;
+        }
+
+        console.log(`Overall winner message: ${overallWinnerMessage}`);
+
+        if (
+          typeof overallWinnerMessage === "string" &&
+          !overallWinnerMessage.includes("tie") &&
+          !overallWinnerMessage.includes("winner")
+        ) {
+          // Emit game over event
+          io.to(roomId).emit("gameOver", {
+            roomId,
+            scores: room.scores,
+            overallWinner: overallWinnerMessage,
+          });
+
+          // Update database for winner
+          try {
+            const winnerUser = await OdinCircledbModel.findById(room.players[0].userId);
+            if (winnerUser) {
+              winnerUser.wallet.cashoutbalance += room.totalBet || 0;
+              await winnerUser.save();
+              console.log(`${winnerUser.name}'s balance updated.`);
+
+              const newWinner = new WinnerModel({
+                roomId: roomId,
+                winnerName: winnerUser._id,
+                totalBet: room.totalBet || 0,
+              });
+              await newWinner.save();
+            }
+          } catch (error) {
+            console.error("Error updating winner balance:", error.message);
+          }
+
+          // Delete room
+          delete rooms[roomId];
+          console.log(`Room ${roomId} deleted after awarding the winner.`);
+        } else {
+          io.to(roomId).emit("opponentLeft", `${disconnectedPlayer.name} has left. Waiting for a new player...`);
+          room.choices = {};
+        }
+      }
+      break;
+    }
+  }
+});
+
+      
+// Handle socket disconnection
+// Handle socket disconnection
+socket.on('disconnect', () => {
+  console.log('A user disconnected:', socket.id);
+
+  // Iterate through the rooms to find the disconnected player's room
+  for (const roomId in rooms) {
+    const room = rooms[roomId];
+    const playerIndex = room.players.findIndex(player => player.id === socket.id);
+
+    if (playerIndex !== -1) {
+      const disconnectedPlayer = room.players[playerIndex];
+      room.players.splice(playerIndex, 1); // Remove the player from the room
+
+      io.to(roomId).emit('message', `${disconnectedPlayer.name} has left the game`);
+
+      if (room.players.length === 0) {
+        // Delete the room if no players are left
+        delete rooms[roomId];
+        console.log(`Room ${roomId} deleted from memory.`);
+      } else {
+        io.to(roomId).emit('opponentLeft', `${disconnectedPlayer.name} has left the game. Waiting for a new player...`);
+        room.choices = {}; // Reset choices if a player leaves mid-game
+      }
+      break;
+    }
+  }
+});
+
 function checkWin(board) {
   // Validate board
   if (!Array.isArray(board) || board.length !== 16) {
@@ -390,6 +503,24 @@ function checkWin(board) {
 
 
 
+
+
+
+
+const resetGame = (roomID) => {
+  const room = rooms[roomID];
+  room.choices = {};
+  room.round = 1;
+  console.log(`Game in room ${roomID} has been reset.`);
+};
+
+
+
+function generateUniqueRoomName() {
+  return Math.random().toString(36).substr(2, 9); // Generate a random alphanumeric string
+}
+
+const MAX_ROUNDS = 4;
 });
 
 
@@ -397,8 +528,8 @@ function checkWin(board) {
 };
 
 // Initialize Socket.IO with the server
-const io = TictacThreeSocketIo(server);
+const io = TictacSocketIo(server);
 
 server.listen(5005, () => {
-  console.log("🚀 Socket.io server running on port 5555");
+  console.log("🚀 Socket.io server running on port ");
 });
