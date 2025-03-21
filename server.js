@@ -15,7 +15,7 @@ const app = express();
 app.use(cors());
 
 const server = http.createServer(app);
-const { v4: uuidv4 } = require('uuid'); // Import UUID for unique room IDs
+// const { v4: uuidv4 } = require('uuid'); // Import UUID for unique room IDs
 
 
 // MongoDB Connection
@@ -48,7 +48,7 @@ io.on("connection", (socket) => {
 
     // If no available room, create a new one
     if (!room) {
-        const newRoomId = uuidv4(); // Generate unique room ID
+        const newRoomId = generateRoomId(); // Generate unique room ID
         console.log(`🆕 No available room, creating Room ${newRoomId} with bet amount: ${amount}`);
 
         room = {
@@ -103,6 +103,11 @@ io.on("connection", (socket) => {
         io.to(room.roomId).emit("turnChange", room.currentPlayer);
     }
 });
+
+
+
+
+  
   socket.on("makeMove", ({ roomId, index }) => {
     const room = activeRooms[roomId];
 
@@ -162,6 +167,11 @@ io.on("connection", (socket) => {
     }
   });
 });
+
+
+function generateRoomId() {
+  return Math.random().toString(36).substr(2, 9); // Generate a random alphanumeric string
+}
 
 function checkWin(board) {
   const winPatterns = [
