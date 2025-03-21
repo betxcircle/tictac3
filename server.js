@@ -506,22 +506,9 @@ function checkWin(board) {
 
 
 
-
-const resetGame = (roomID) => {
-  const room = rooms[roomID];
-  room.choices = {};
-  room.round = 1;
-  console.log(`Game in room ${roomID} has been reset.`);
-};
-
-
-
 function generateUniqueRoomName() {
   return Math.random().toString(36).substr(2, 9); // Generate a random alphanumeric string
 }
-
-const MAX_ROUNDS = 4;
-});
 
 
   return io;
