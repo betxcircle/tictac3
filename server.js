@@ -512,8 +512,8 @@ function generateUniqueRoomName() {
 
 
   return io;
-};
-    }
+
+      
 // Initialize Socket.IO with the server
 const io = TictacSocketIo(server);
 
