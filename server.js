@@ -40,19 +40,19 @@ socket.on("joinRoom", async ({ playerName, userId, amount, expoPushToken }) => {
 
     // Validate required fields
     if (!playerName || !userId || !amount) {
-        console.log("❌ Error: Missing required fields (playerName, userId, amount).");
+        console.log("❌ Error: Missing required fields.");
         return socket.emit("invalidJoin", "Missing required fields");
     }
 
-    // Look for an existing room with the same amount that has space
+    // Look for an existing room with space
     let room = Object.values(activeRooms).find(r => r.amount === amount && r.players.length < 2);
 
     if (room) {
         console.log(`🔍 Found an existing room: ${room.roomId} with ${room.players.length} players.`);
     } else {
-        // If no available room, create a new one
+        // No available room, create a new one
         const newRoomId = generateRoomId();
-        console.log(`🆕 No room available. Creating a new Room with ID: ${newRoomId} for bet amount: ${amount}`);
+        console.log(`🆕 Creating a new Room with ID: ${newRoomId}`);
 
         room = {
             roomId: newRoomId,
@@ -65,13 +65,13 @@ socket.on("joinRoom", async ({ playerName, userId, amount, expoPushToken }) => {
         activeRooms[newRoomId] = room;
     }
 
-    // If room is already full, reject the join request
+    // If room is full, reject the request
     if (room.players.length >= 2) {
-        console.log(`🚫 Room ${room.roomId} is already full. ${playerName} cannot join.`);
-        return socket.emit("roomFull", "Room is already full. Create a new room.");
+        console.log(`🚫 Room ${room.roomId} is full.`);
+        return socket.emit("roomFull", "Room is already full.");
     }
 
-    // Assign player symbol based on their position
+    // Assign player symbol
     const symbols = ["X", "O"];
     const playerNumber = room.players.length + 1;
     const playerSymbol = symbols[playerNumber - 1];
@@ -91,17 +91,20 @@ socket.on("joinRoom", async ({ playerName, userId, amount, expoPushToken }) => {
 
     // Join the socket room
     socket.join(room.roomId);
-    console.log(`✅ ${playerName} successfully joined Room ${room.roomId} as Player ${playerNumber}`);
+    console.log(`✅ ${playerName} joined Room ${room.roomId} as Player ${playerNumber}`);
+
+    // **NEW** - Emit event to inform the player they successfully joined
+    socket.emit("roomJoined", { roomId: room.roomId, amount, players: room.players });
 
     // Notify others in the room
-    socket.to(room.roomId).emit("playerJoined", `${playerName} joined`);
+    socket.to(room.roomId).emit("playerJoined", { playerName, roomId: room.roomId });
     io.to(room.roomId).emit("playersUpdate", room.players);
 
     console.log(`🔄 Updated Room ${room.roomId} Players List:`, room.players);
 
-    // If the room has 2 players, start the game
+    // If 2 players are present, start the game
     if (room.players.length === 2) {
-        console.log(`🎮 Game in Room ${room.roomId} is now READY! Players:`, room.players);
+        console.log(`🎮 Game in Room ${room.roomId} is READY!`);
 
         io.to(room.roomId).emit("gameReady", {
             players: room.players.map((p) => ({ name: p.name, symbol: p.symbol, amount: p.amount })),
@@ -110,10 +113,10 @@ socket.on("joinRoom", async ({ playerName, userId, amount, expoPushToken }) => {
         });
 
         room.currentPlayer = room.startingPlayer;
-        console.log(`🌀 Turn changed: Now it's Player ${room.currentPlayer}'s turn.`);
         io.to(room.roomId).emit("turnChange", room.currentPlayer);
     }
 });
+
 
 
 socket.on("checkRoom", ({ roomId }, callback) => {
