@@ -504,19 +504,16 @@ function checkWin(board) {
 
 
 
-
-
 function generateUniqueRoomName() {
   return Math.random().toString(36).substr(2, 9); // Generate a random alphanumeric string
 }
 
-
-  return io;
-
-      
 // Initialize Socket.IO with the server
 const io = TictacSocketIo(server);
 
 server.listen(5005, () => {
-  console.log("🚀 Socket.io server running on port ");
+  console.log("🚀 Socket.io server running on port 5005");
 });
+
+return io; // Make sure this return statement is correctly placed
+
