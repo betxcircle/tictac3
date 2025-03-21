@@ -35,21 +35,24 @@ const activeRooms = {};
 io.on("connection", (socket) => {
   console.log(`🔌 User connected: ${socket.id}`);
 
- socket.on("joinRoom", async ({ playerName, userId, amount, expoPushToken }) => {
-    console.log(`🔹 Player ${playerName} (ID: ${userId}) wants to join a room with bet amount: ${amount}`);
+socket.on("joinRoom", async ({ playerName, userId, amount, expoPushToken }) => {
+    console.log(`🔹 Player ${playerName} (ID: ${userId}) is trying to join a room with bet amount: ${amount}`);
 
+    // Validate required fields
     if (!playerName || !userId || !amount) {
-        console.log("❌ Missing required fields for joining the room.");
+        console.log("❌ Error: Missing required fields (playerName, userId, amount).");
         return socket.emit("invalidJoin", "Missing required fields");
     }
 
-    // Find an existing room with the same bet amount and an open slot
+    // Look for an existing room with the same amount that has space
     let room = Object.values(activeRooms).find(r => r.amount === amount && r.players.length < 2);
 
-    // If no available room, create a new one
-    if (!room) {
-        const newRoomId = generateRoomId(); // Generate unique room ID
-        console.log(`🆕 No available room, creating Room ${newRoomId} with bet amount: ${amount}`);
+    if (room) {
+        console.log(`🔍 Found an existing room: ${room.roomId} with ${room.players.length} players.`);
+    } else {
+        // If no available room, create a new one
+        const newRoomId = generateRoomId();
+        console.log(`🆕 No room available. Creating a new Room with ID: ${newRoomId} for bet amount: ${amount}`);
 
         room = {
             roomId: newRoomId,
@@ -62,35 +65,43 @@ io.on("connection", (socket) => {
         activeRooms[newRoomId] = room;
     }
 
+    // If room is already full, reject the join request
     if (room.players.length >= 2) {
-        console.log(`🚫 Room ${room.roomId} is full. ${playerName} cannot join.`);
+        console.log(`🚫 Room ${room.roomId} is already full. ${playerName} cannot join.`);
         return socket.emit("roomFull", "Room is already full. Create a new room.");
     }
 
+    // Assign player symbol based on their position
     const symbols = ["X", "O"];
     const playerNumber = room.players.length + 1;
     const playerSymbol = symbols[playerNumber - 1];
 
-    room.players.push({ 
-        name: playerName, 
-        userId, 
-        socketId: socket.id, 
-        amount, 
-        playerNumber, 
-        symbol: playerSymbol, 
-        expoPushToken 
+    console.log(`🎭 Assigning symbol "${playerSymbol}" to Player ${playerNumber}`);
+
+    // Add player to room
+    room.players.push({
+        name: playerName,
+        userId,
+        socketId: socket.id,
+        amount,
+        playerNumber,
+        symbol: playerSymbol,
+        expoPushToken
     });
 
+    // Join the socket room
     socket.join(room.roomId);
-    console.log(`✅ ${playerName} joined Room ${room.roomId} as Player ${playerNumber} with Symbol: ${playerSymbol}`);
+    console.log(`✅ ${playerName} successfully joined Room ${room.roomId} as Player ${playerNumber}`);
 
+    // Notify others in the room
     socket.to(room.roomId).emit("playerJoined", `${playerName} joined`);
     io.to(room.roomId).emit("playersUpdate", room.players);
 
-    console.log(`🔄 Room ${room.roomId} now has ${room.players.length} players:`, room.players);
+    console.log(`🔄 Updated Room ${room.roomId} Players List:`, room.players);
 
+    // If the room has 2 players, start the game
     if (room.players.length === 2) {
-        console.log(`🎮 Game in Room ${room.roomId} is ready! Players:`, room.players);
+        console.log(`🎮 Game in Room ${room.roomId} is now READY! Players:`, room.players);
 
         io.to(room.roomId).emit("gameReady", {
             players: room.players.map((p) => ({ name: p.name, symbol: p.symbol, amount: p.amount })),
@@ -103,6 +114,7 @@ io.on("connection", (socket) => {
         io.to(room.roomId).emit("turnChange", room.currentPlayer);
     }
 });
+
 
 
 
