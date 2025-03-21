@@ -124,6 +124,12 @@ socket.on("checkRoom", ({ roomId }, callback) => {
     callback({ exists: roomExists });
 });
 
+socket.on("getRoomData", ({ userId }) => {
+    const room = findRoomByUserId(userId); // Function to find user's room
+    if (room) {
+        io.to(socket.id).emit("roomData", { roomId: room.id, players: room.players });
+    }
+});
 
 
   
