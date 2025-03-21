@@ -116,6 +116,10 @@ socket.on("joinRoom", async ({ playerName, userId, amount, expoPushToken }) => {
 });
 
 
+socket.on("checkRoom", ({ roomId }, callback) => {
+    const roomExists = io.sockets.adapter.rooms.has(roomId);
+    callback({ exists: roomExists });
+});
 
 
 
