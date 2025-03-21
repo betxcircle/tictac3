@@ -1,4 +1,4 @@
-const express = require("express");
+I const express = require("express");
 const http = require("http");
 const cors = require("cors");
 const { Server } = require("socket.io");
@@ -15,6 +15,8 @@ const app = express();
 app.use(cors());
 
 const server = http.createServer(app);
+const { v4: uuidv4 } = require('uuid'); // Import UUID for unique room IDs
+
 
 // MongoDB Connection
 const uri = `mongodb+srv://${process.env.MONGO_USERNAME}:${process.env.MONGO_PASSWORD}@${process.env.MONGO_CLUSTER}.kbgr5.mongodb.net/${process.env.MONGO_DATABASE}?retryWrites=true&w=majority`;
@@ -33,57 +35,74 @@ const activeRooms = {};
 io.on("connection", (socket) => {
   console.log(`🔌 User connected: ${socket.id}`);
 
-  socket.on("joinRoom", async ({ playerName, roomId, userId, totalBet, expoPushToken }) => {
-    if (!playerName || !userId || !roomId || !totalBet) {
-      return socket.emit("invalidJoin", "Missing required fields");
+ socket.on("joinRoom", async ({ playerName, userId, amount, expoPushToken }) => {
+    console.log(`🔹 Player ${playerName} (ID: ${userId}) wants to join a room with bet amount: ${amount}`);
+
+    if (!playerName || !userId || !amount) {
+        console.log("❌ Missing required fields for joining the room.");
+        return socket.emit("invalidJoin", "Missing required fields");
     }
 
-    let room = activeRooms[roomId];
+    // Find an existing room with the same bet amount and an open slot
+    let room = Object.values(activeRooms).find(r => r.amount === amount && r.players.length < 2);
 
+    // If no available room, create a new one
     if (!room) {
-      room = {
-        roomId,
-        players: [],
-        board: Array(16).fill(null),
-        currentPlayer: 0,
-        startingPlayer: 0,
-        totalBet,
-      };
-      activeRooms[roomId] = room;
+        const newRoomId = uuidv4(); // Generate unique room ID
+        console.log(`🆕 No available room, creating Room ${newRoomId} with bet amount: ${amount}`);
+
+        room = {
+            roomId: newRoomId,
+            players: [],
+            board: Array(16).fill(null),
+            currentPlayer: 0,
+            startingPlayer: 0,
+            amount,
+        };
+        activeRooms[newRoomId] = room;
     }
 
-    if (room.players.length > 0 && room.totalBet !== totalBet) {
-      return socket.emit("invalidBet", "Bet amount must match the room");
+    if (room.players.length >= 2) {
+        console.log(`🚫 Room ${room.roomId} is full. ${playerName} cannot join.`);
+        return socket.emit("roomFull", "Room is already full. Create a new room.");
     }
 
-    if (room.players.length >= 3) {
-      return socket.emit("roomFull", "Room already has three players");
-    }
-
-    const symbols = ["X", "O", "A"];
+    const symbols = ["X", "O"];
     const playerNumber = room.players.length + 1;
     const playerSymbol = symbols[playerNumber - 1];
 
-    room.players.push({ name: playerName, userId, socketId: socket.id, totalBet, playerNumber, symbol: playerSymbol, expoPushToken });
+    room.players.push({ 
+        name: playerName, 
+        userId, 
+        socketId: socket.id, 
+        amount, 
+        playerNumber, 
+        symbol: playerSymbol, 
+        expoPushToken 
+    });
 
-    socket.join(roomId);
-    socket.to(roomId).emit("playerJoined", `${playerName} joined`);
+    socket.join(room.roomId);
+    console.log(`✅ ${playerName} joined Room ${room.roomId} as Player ${playerNumber} with Symbol: ${playerSymbol}`);
 
-    socket.emit("playerInfo", { playerNumber, symbol: playerSymbol, playerName, roomId, userId });
+    socket.to(room.roomId).emit("playerJoined", `${playerName} joined`);
+    io.to(room.roomId).emit("playersUpdate", room.players);
 
-    io.to(roomId).emit("playersUpdate", room.players);
+    console.log(`🔄 Room ${room.roomId} now has ${room.players.length} players:`, room.players);
 
-    if (room.players.length === 2 || room.players.length === 3) {
-      io.to(roomId).emit("gameReady", {
-        players: room.players.map((p) => ({ name: p.name, symbol: p.symbol })),
-        roomId,
-      });
+    if (room.players.length === 2) {
+        console.log(`🎮 Game in Room ${room.roomId} is ready! Players:`, room.players);
 
-      room.currentPlayer = room.startingPlayer;
-      io.to(roomId).emit("turnChange", room.currentPlayer);
+        io.to(room.roomId).emit("gameReady", {
+            players: room.players.map((p) => ({ name: p.name, symbol: p.symbol, amount: p.amount })),
+            roomId: room.roomId,
+            amount: room.amount,
+        });
+
+        room.currentPlayer = room.startingPlayer;
+        console.log(`🌀 Turn changed: Now it's Player ${room.currentPlayer}'s turn.`);
+        io.to(room.roomId).emit("turnChange", room.currentPlayer);
     }
-  });
-
+});
   socket.on("makeMove", ({ roomId, index }) => {
     const room = activeRooms[roomId];
 
