@@ -3,14 +3,13 @@ const http = require("http");
 const cors = require("cors");
 const { Server } = require("socket.io");
 const mongoose = require("mongoose");
-const dotenv = require("dotenv");
 
 const OdinCircledbModel = require("./models/odincircledb");
 const BetModel = require("./models/BetModel");
 const WinnerModel = require("./models/WinnerModel");
 const LoserModel = require("./models/LoserModel");
 
-dotenv.config();
+require("dotenv").config();
 
 const app = express();
 app.use(cors());
@@ -26,20 +25,17 @@ mongoose
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
 const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
-  },
+  cors: { origin: "*", methods: ["GET", "POST"] },
 });
 
 const activeRooms = {};
 
 io.on("connection", (socket) => {
-  console.log("A user connected:", socket.id);
+  console.log(`🔌 User connected: ${socket.id}`);
 
   socket.on("joinRoom", async ({ playerName, roomId, userId, totalBet, expoPushToken }) => {
     if (!playerName || !userId || !roomId || !totalBet) {
-      return socket.emit("invalidJoin", "All fields are required");
+      return socket.emit("invalidJoin", "Missing required fields");
     }
 
     let room = activeRooms[roomId];
@@ -48,7 +44,7 @@ io.on("connection", (socket) => {
       room = {
         roomId,
         players: [],
-        board: Array(9).fill(null),
+        board: Array(16).fill(null),
         currentPlayer: 0,
         startingPlayer: 0,
         totalBet,
@@ -68,22 +64,16 @@ io.on("connection", (socket) => {
     const playerNumber = room.players.length + 1;
     const playerSymbol = symbols[playerNumber - 1];
 
-    room.players.push({
-      name: playerName,
-      userId,
-      socketId: socket.id,
-      totalBet,
-      playerNumber,
-      symbol: playerSymbol,
-      expoPushToken,
-    });
+    room.players.push({ name: playerName, userId, socketId: socket.id, totalBet, playerNumber, symbol: playerSymbol, expoPushToken });
 
     socket.join(roomId);
-    socket.to(roomId).emit("playerJoined", `${playerName} joined the room`);
+    socket.to(roomId).emit("playerJoined", `${playerName} joined`);
+
     socket.emit("playerInfo", { playerNumber, symbol: playerSymbol, playerName, roomId, userId });
+
     io.to(roomId).emit("playersUpdate", room.players);
 
-    if (room.players.length >= 2) {
+    if (room.players.length === 2 || room.players.length === 3) {
       io.to(roomId).emit("gameReady", {
         players: room.players.map((p) => ({ name: p.name, symbol: p.symbol })),
         roomId,
@@ -91,25 +81,13 @@ io.on("connection", (socket) => {
 
       room.currentPlayer = room.startingPlayer;
       io.to(roomId).emit("turnChange", room.currentPlayer);
-
-      for (const player of room.players) {
-        const recipient = await OdinCircledbModel.findById(player.userId);
-        if (recipient && recipient.expoPushToken) {
-          await sendPushNotification(
-            recipient.expoPushToken,
-            "Game Ready!",
-            "The game is ready to start!",
-            { roomId }
-          );
-        }
-      }
     }
   });
 
-  socket.on("makeMove", async ({ roomId, index, playerName, symbol }) => {
+  socket.on("makeMove", ({ roomId, index }) => {
     const room = activeRooms[roomId];
 
-    if (!room || !Array.isArray(room.players) || room.players.length < 2 || !room.board) {
+    if (!room || !room.players || room.players.length < 2) {
       return socket.emit("invalidMove", "Invalid game state or not enough players");
     }
 
@@ -118,80 +96,68 @@ io.on("connection", (socket) => {
     }
 
     const currentPlayer = room.players[room.currentPlayer];
+
     if (socket.id !== currentPlayer.socketId) {
-      return socket.emit("invalidMove", "It's not your turn");
+      return socket.emit("invalidMove", "Not your turn");
     }
 
     room.board[index] = currentPlayer.symbol;
-    io.to(roomId).emit("moveMade", { index, symbol: currentPlayer.symbol, playerName });
+
+    io.to(roomId).emit("moveMade", { index, symbol: currentPlayer.symbol, playerName: currentPlayer.name });
 
     const winnerSymbol = checkWin(room.board);
+
     if (winnerSymbol) {
-      clearTimeout(room.turnTimeout);
-      const winnerPlayer = room.players.find((p) => p.symbol === winnerSymbol);
-      io.to(roomId).emit("gameOver", {
-        winnerSymbol,
-        result: winnerPlayer ? `${winnerPlayer.name} (${winnerSymbol}) wins!` : "We have a winner!",
-      });
+      io.to(roomId).emit("gameOver", { winnerSymbol, result: `${currentPlayer.name} wins!` });
       return;
     }
 
     if (room.board.every((cell) => cell !== null)) {
-      clearTimeout(room.turnTimeout);
       io.to(roomId).emit("gameDraw", { result: "It's a draw!" });
       return;
     }
 
     room.currentPlayer = (room.currentPlayer + 1) % room.players.length;
     io.to(roomId).emit("turnChange", room.currentPlayer);
-    startTurnTimer(roomId);
+  });
+
+  socket.on("disconnect", () => {
+    console.log(`❌ User disconnected: ${socket.id}`);
+
+    for (const roomId in activeRooms) {
+      const room = activeRooms[roomId];
+
+      if (room) {
+        const playerIndex = room.players.findIndex((player) => player.socketId === socket.id);
+
+        if (playerIndex !== -1) {
+          const [disconnectedPlayer] = room.players.splice(playerIndex, 1);
+
+          io.to(roomId).emit("playerLeft", { message: `${disconnectedPlayer.name} left the game`, roomId });
+
+          if (room.players.length === 0) {
+            delete activeRooms[roomId];
+          }
+        }
+      }
+    }
   });
 });
 
-function startTurnTimer(roomId) {
-  const room = activeRooms[roomId];
-
-  if (!room) return;
-  clearTimeout(room.turnTimeout);
-
-  room.turnTimeout = setTimeout(() => {
-    console.log(`Turn timed out in room ${roomId}`);
-    room.currentPlayer = (room.currentPlayer + 1) % room.players.length;
-    io.to(roomId).emit("turnChange", room.currentPlayer);
-    startTurnTimer(roomId);
-  }, 3000);
-}
-
-async function sendPushNotification(expoPushToken, title, body, data = {}) {
-  if (!Expo.isExpoPushToken(expoPushToken)) {
-    console.error(`Invalid Expo push token: ${expoPushToken}`);
-    return;
-  }
-
-  const message = {
-    to: expoPushToken,
-    sound: "default",
-    title,
-    body,
-    data,
-  };
-
-  try {
-    await expo.sendPushNotificationsAsync([message]);
-    console.log("Push notification sent:", message);
-  } catch (error) {
-    console.error("Error sending push notification:", error);
-  }
-}
-
 function checkWin(board) {
   const winPatterns = [
-    [0, 1, 2], [1, 2, 3], [4, 5, 6], [5, 6, 7],
-    [8, 9, 10], [9, 10, 11], [12, 13, 14], [13, 14, 15],
-    [0, 4, 8], [4, 8, 12], [1, 5, 9], [5, 9, 13],
-    [2, 6, 10], [6, 10, 14], [3, 7, 11], [7, 11, 15],
-    [0, 5, 10], [1, 6, 11], [4, 9, 14], [5, 10, 15],
-    [3, 6, 9], [2, 5, 8], [7, 10, 13], [6, 9, 12],
+    [0, 1, 2], [1, 2, 3],
+    [4, 5, 6], [5, 6, 7],
+    [8, 9, 10], [9, 10, 11],
+    [12, 13, 14], [13, 14, 15],
+    [0, 4, 8], [4, 8, 12],
+    [1, 5, 9], [5, 9, 13],
+    [2, 6, 10], [6, 10, 14],
+    [3, 7, 11], [7, 11, 15],
+    [0, 5, 10], [1, 6, 11],
+    [4, 9, 14], [5, 10, 15],
+    [3, 6, 9], [2, 5, 8],
+    [7, 10, 13], [6, 9, 12],
   ];
 
   for (const [a, b, c] of winPatterns) {
@@ -200,10 +166,7 @@ function checkWin(board) {
     }
   }
 
-  return board.every((cell) => cell !== null) ? "draw" : null;
+  return null;
 }
 
-server.listen(5005, () => {
-  console.log("🚀 Server running on port 5005");
-});
-
+server.listen(5005, () => console.log("🚀 Server running on port 5005"));
