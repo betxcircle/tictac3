@@ -170,7 +170,7 @@ socket.on("getRoomData", ({ userId }) => {
       }
 
       // Emit move made and turn change
-      io.to(roomId).emit('moveMade', { index, symbol: currentPlayer.symbol, playerName: currentPlayer.name });
+      io.to(roomId).emit('moveMade', { index, symbol: currentPlayer.symbol, playerName: currentPlayer.name, board: room.board });
 
       // Change turn
       room.currentPlayer = (room.currentPlayer + 1) % 2;
