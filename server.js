@@ -209,6 +209,10 @@ socket.on("getRoomData", ({ userId }) => {
 // Add the totalBet to the winner's balance
 //winnerUser.wallet.cashoutbalance += totalBet;
 //await winnerUser.save();
+       const totalBet = room.players.reduce((sum, player) => {
+    const amount = Number(player.amount); // Convert to number
+    return isNaN(amount) ? sum : sum + amount;
+  }, 0);
 
 console.log('Winner balance updated successfully');
 
