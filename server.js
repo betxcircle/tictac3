@@ -104,7 +104,7 @@ socket.on("joinRoom", async ({ playerName, userId, amount, expoPushToken }) => {
 
     // If 2 players are present, start the game
     if (room.players.length === 2) {
-       startGame(room);
+       startGame(room)
         console.log(`🎮 Game in Room ${room.roomId} is READY!`);
 
         io.to(room.roomId).emit("gameReady", {
@@ -171,7 +171,7 @@ async function startGame(room) {
         io.to(player2.socketId).emit("balanceUpdated", { newBalance: player2.wallet.cashoutbalance });
 
         // Emit game start event
-        io.to(room.roomId).emit("gameStart", { message: "Game is starting!", room });
+       // io.to(room.roomId).emit("gameStart", { message: "Game is starting!", room });
     } catch (error) {
         console.error("❌ Error starting game:", error);
         io.to(room.roomId).emit("invalidGameStart", "Server error while starting the game");
