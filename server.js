@@ -133,7 +133,7 @@ socket.on("getRoomData", ({ userId }) => {
 });
 
 async function startGame(room) {
-    console.log(`🎮 Starting game in Room ${room.roomId}...`);
+    console.log(`🎮 Starting ff game in Room ${room.roomId}...`);
 
     try {
         // Fetch both players from the database
@@ -147,15 +147,15 @@ async function startGame(room) {
         }
 
         // Check if both players have enough balance
-        if (player1.wallet.cashoutbalance < room.amount || player2.wallet.cashoutbalance < room.amount) {
+        if (player1.wallet.balance < room.amount || player2.wallet.balance < room.amount) {
             console.log("❌ Error: One or both players have insufficient balance.");
             io.to(room.roomId).emit("invalidGameStart", "One or both players have insufficient balance");
             return;
         }
 
         // Deduct the balance from both players
-        player1.wallet.cashoutbalance -= room.amount;
-        player2.wallet.cashoutbalance -= room.amount;
+        player1.wallet.balance -= room.amount;
+        player2.wallet.balance -= room.amount;
 
         // Save the updated balances
         await player1.save();
@@ -167,8 +167,8 @@ async function startGame(room) {
         console.log(`💰 Balance deducted from both players. Total Bet: ${room.totalBet}`);
 
         // Emit updated balances to players
-        io.to(player1.socketId).emit("balanceUpdated", { newBalance: player1.wallet.cashoutbalance });
-        io.to(player2.socketId).emit("balanceUpdated", { newBalance: player2.wallet.cashoutbalance });
+        io.to(player1.socketId).emit("balanceUpdated", { newBalance: player1.wallet.balance });
+        io.to(player2.socketId).emit("balanceUpdated", { newBalance: player2.wallet.balance });
 
         // Emit game start event
        // io.to(room.roomId).emit("gameStart", { message: "Game is starting!", room });
