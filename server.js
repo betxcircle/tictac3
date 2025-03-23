@@ -39,7 +39,7 @@ socket.on("joinRoom", async ({ playerName, userId, amount, expoPushToken }) => {
     console.log(`🔹 Player ${playerName} (ID: ${userId}) is trying to join a room with bet amount: ${amount}`);
 
     // Validate required fields
-    if (!playerName || !userId || !amount) {
+    if (!playerName || !userId || amount == null) {
         console.log("❌ Error: Missing required fields.");
         return socket.emit("invalidJoin", "Missing required fields");
     }
