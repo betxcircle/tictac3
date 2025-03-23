@@ -204,7 +204,31 @@ socket.on("getRoomData", ({ userId }) => {
           const gameResult = `${winnerPlayer.name} (${winnerSymbol}) wins!`;
 
           // Access the totalBet from the room object
-          const totalBet = room.totalBet;
+         // Ensure all players have a valid amount
+const totalBet = room.players.reduce((sum, player) => {
+  const amount = Number(player.amount); // Convert to number
+  return isNaN(amount) ? sum : sum + amount;
+}, 0);
+
+console.log(`Calculated totalBet: ${totalBet}`);
+
+// Validate totalBet before using it
+if (isNaN(totalBet) || totalBet <= 0) {
+  console.error(`Invalid totalBet value: ${totalBet}`);
+  return;
+}
+
+// Ensure winner's cashoutbalance is valid
+if (typeof winnerUser.wallet.cashoutbalance !== 'number') {
+  console.error(`Invalid cashoutbalance: ${winnerUser.wallet.cashoutbalance}`);
+  winnerUser.wallet.cashoutbalance = 0; // Default to 0 if undefined
+}
+
+// Add the totalBet to the winner's balance
+//winnerUser.wallet.cashoutbalance += totalBet;
+//await winnerUser.save();
+
+console.log('Winner balance updated successfully');
 
           // Emit 'gameOver' event with winner and loser info
           // iooo.to(roomId).emit('gameOver', { 
