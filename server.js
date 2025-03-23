@@ -104,6 +104,7 @@ socket.on("joinRoom", async ({ playerName, userId, amount, expoPushToken }) => {
 
     // If 2 players are present, start the game
     if (room.players.length === 2) {
+       startGame(room);
         console.log(`🎮 Game in Room ${room.roomId} is READY!`);
 
         io.to(room.roomId).emit("gameReady", {
@@ -131,6 +132,51 @@ socket.on("getRoomData", ({ userId }) => {
     }
 });
 
+async function startGame(room) {
+    console.log(`🎮 Starting game in Room ${room.roomId}...`);
+
+    try {
+        // Fetch both players from the database
+        const player1 = await OdinCircledbModel.findById(room.players[0].userId);
+        const player2 = await OdinCircledbModel.findById(room.players[1].userId);
+
+        if (!player1 || !player2) {
+            console.log("❌ Error: One or both players not found in the database.");
+            io.to(room.roomId).emit("invalidGameStart", "Players not found");
+            return;
+        }
+
+        // Check if both players have enough balance
+        if (player1.wallet.cashoutbalance < room.amount || player2.wallet.cashoutbalance < room.amount) {
+            console.log("❌ Error: One or both players have insufficient balance.");
+            io.to(room.roomId).emit("invalidGameStart", "One or both players have insufficient balance");
+            return;
+        }
+
+        // Deduct the balance from both players
+        player1.wallet.cashoutbalance -= room.amount;
+        player2.wallet.cashoutbalance -= room.amount;
+
+        // Save the updated balances
+        await player1.save();
+        await player2.save();
+
+        // Update total bet in the room
+        room.totalBet = room.amount * 2;
+
+        console.log(`💰 Balance deducted from both players. Total Bet: ${room.totalBet}`);
+
+        // Emit updated balances to players
+        io.to(player1.socketId).emit("balanceUpdated", { newBalance: player1.wallet.cashoutbalance });
+        io.to(player2.socketId).emit("balanceUpdated", { newBalance: player2.wallet.cashoutbalance });
+
+        // Emit game start event
+        io.to(room.roomId).emit("gameStart", { message: "Game is starting!", room });
+    } catch (error) {
+        console.error("❌ Error starting game:", error);
+        io.to(room.roomId).emit("invalidGameStart", "Server error while starting the game");
+    }
+}
 
    
  socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
