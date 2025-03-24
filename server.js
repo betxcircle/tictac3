@@ -436,6 +436,7 @@ socket.on("disconnect", async () => {
             }
         }
     }
+}
 });
 
 
