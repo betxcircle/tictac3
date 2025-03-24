@@ -398,12 +398,12 @@ socket.on("disconnect", async () => {
 
                 // If one player remains and there's NO existing winner, award them as default winner
                 if (room.players.length === 1) {
-                    const winner = room.players[0];
-                    console.log(`🏆 ${winner.playerName} is the default winner because the opponent disconnected.`);
+                    const winnerPlayer = room.players[0];
+                    console.log(`🏆 ${winnerPlayer.playerName} is the default winner because the opponent disconnected.`);
 
                     try {
                         // Fetch the winner from the database
-                        const winnerUser = await OdinCircledbModel.findById(winner.userId);
+                        const winnerUser = await OdinCircledbModel.findById(winnerPlayer.userId);
                         if (winnerUser) {
                             // Award totalBet to the remaining player
                             winnerUser.wallet.cashoutbalance += room.totalBet;
@@ -413,11 +413,11 @@ socket.on("disconnect", async () => {
                             io.to(winner.socketId).emit("winnerScreen", {
                                 result: `You win! Opponent disconnected.`,
                                 totalBet: room.totalBet,
-                                winnerUserId: winner.userId,
-                                winner
+                                winnerUserId: winnerPlayer.userId,
+                                winnerPlayer
                             });
 
-                            console.log(`💰 ${winner.playerName} received ${room.totalBet} coins as the default winner.`);
+                            console.log(`💰 ${winnerPlayer.playerName} received ${room.totalBet} coins as the default winner.`);
                         } else {
                             console.error("❌ Winner user not found in the database.");
                         }
