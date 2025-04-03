@@ -178,6 +178,29 @@ async function startGame(room) {
     }
 }
 
+
+  
+ const startTurnTimer = (roomId) => {
+  const room = activeRooms[roomId];
+
+  if (!room) return;
+
+  if (room.turnTimeout) {
+    clearTimeout(room.turnTimeout); // Clear any existing timeout
+  }
+
+  // Set a new timeout
+  room.turnTimeout = setTimeout(() => {
+    console.log(`Player took too long. Auto-switching turn for room ${roomId}`);
+    
+    room.currentPlayer = (room.currentPlayer + 1) % 2; // Switch turn
+    io.to(roomId).emit('turnChange', room.currentPlayer % 2);
+
+    // Restart the timer for the next player
+    startTurnTimer(roomId);
+  }, 3000);
+};
+
    
  socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
   const room = activeRooms[roomId];
@@ -221,7 +244,7 @@ async function startGame(room) {
       // Change turn
       room.currentPlayer = (room.currentPlayer + 1) % 2;
       io.to(roomId).emit('turnChange', room.currentPlayer % 2);
-     //startTurnTimer(roomId); // Restart timer for next player
+      startTurnTimer(roomId); // Restart timer for next player
 
       // Start the turn timeout for the next player
       // room.turnTimeout = setTimeout(() => {
