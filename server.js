@@ -410,7 +410,7 @@ socket.on("disconnect", async () => {
                             await winnerUser.save();
 
                             // Emit winner event
-                            io.to(winner.socketId).emit("winnerScreen", {
+                            io.to(winnerPlayer.socketId).emit("winnerScreen", {
                                 result: `You win! Opponent disconnected.`,
                                 totalBet: room.totalBet,
                                 winnerUserId: winnerPlayer.userId,
