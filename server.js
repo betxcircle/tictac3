@@ -259,10 +259,10 @@ console.log('🔄 Emitting turnChange:', currentPlayer.userId);
       io.to(roomId).emit('moveMade', { index, symbol: currentPlayer.symbol, playerName: currentPlayer.name, board: room.board });
 
    // Change turn
-room.currentPlayer = (room.currentPlayer + 1) % 2;  // Move to the next player
+//room.currentPlayer = (room.currentPlayer + 1) % 2;  // Move to the next player
 
 // Get the current player after the turn change
-const currentPlayer = room.players[room.currentPlayer];
+//const currentPlayer = room.players[room.currentPlayer];
 
 // Ensure currentPlayer exists and has userId
 if (!currentPlayer || !currentPlayer.userId) {
@@ -274,21 +274,7 @@ if (!currentPlayer || !currentPlayer.userId) {
 io.to(roomId).emit('turnChange', currentPlayer.userId);
 
 startTurnTimer(roomId); // Restart timer for next player
-
-
-      // Start the turn timeout for the next player
-      // room.turnTimeout = setTimeout(() => {
-      //   console.log(`Player took too long. Auto-switching turn for room ${roomId}`);
-      //   room.currentPlayer = (room.currentPlayer + 1) % 2;
-      //   iooo.to(roomId).emit('turnChange', room.currentPlayer % 2);
-      // }, 3000);
-  
-      // **Step 2: Start a new 5-second timer for forced turn change**
-      // room.turnTimeout = setTimeout(() => {
-      //   console.log(`Player took too long. Auto-switching turn for room ${roomId}`);
-      //   room.currentPlayer = (room.currentPlayer + 1) % 2;
-      //   iooo.to(roomId).emit('turnChange', room.currentPlayer % 2);
-      // // }, 3000);
+      
       const winnerSymbol = checkWin(room.board);
 
       if (winnerSymbol) {
