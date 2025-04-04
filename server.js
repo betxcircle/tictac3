@@ -259,21 +259,22 @@ console.log('🔄 Emitting turnChange:', currentPlayer.userId);
       io.to(roomId).emit('moveMade', { index, symbol: currentPlayer.symbol, playerName: currentPlayer.name, board: room.board });
 
    // Change turn
-room.currentPlayer = (room.currentPlayer + 1) % 2;  // Move to the next player
+// Change turn
+    room.currentPlayer = (room.currentPlayer + 1) % 2;
 
-// Get the current player after the turn change
-//const currentPlayer = room.players[room.currentPlayer];
+    // ⚠️ Fetch the *new* current player based on updated index
+    const nextPlayer = room.players[room.currentPlayer];
 
-// Ensure currentPlayer exists and has userId
-if (!currentPlayer || !currentPlayer.userId) {
-  console.error('Error: Current player or userId is missing');
-  return;
-}
+    if (!nextPlayer || !nextPlayer.userId) {
+      console.error('Error: nextPlayer is missing userId');
+      return;
+    }
 
-// Emit turn change with the current player's userId
-io.to(roomId).emit('turnChange', currentPlayer.userId);
+    // Notify frontend
+    io.to(roomId).emit('turnChange', nextPlayer.userId);
+    console.log('🔄 Emitting turnChange:', nextPlayer.userId);
 
-startTurnTimer(roomId); // Restart timer for next player
+    startTurnTimer(roomId); // Restart timer
       
       const winnerSymbol = checkWin(room.board);
 
