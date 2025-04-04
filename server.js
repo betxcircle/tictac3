@@ -259,7 +259,7 @@ console.log('🔄 Emitting turnChange:', currentPlayer.userId);
       io.to(roomId).emit('moveMade', { index, symbol: currentPlayer.symbol, playerName: currentPlayer.name, board: room.board });
 
    // Change turn
-//room.currentPlayer = (room.currentPlayer + 1) % 2;  // Move to the next player
+room.currentPlayer = (room.currentPlayer + 1) % 2;  // Move to the next player
 
 // Get the current player after the turn change
 //const currentPlayer = room.players[room.currentPlayer];
