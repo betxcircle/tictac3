@@ -200,7 +200,9 @@ const startTurnTimer = (roomId) => {
     const currentPlayer = room.players[room.currentPlayer];
 
     // Emit the new player's userId instead of index
-    io.to(roomId).emit('turnChange', currentPlayer.userId);
+  io.to(roomId).emit('turnChange', currentPlayer.userId);
+console.log('🔄 Emitting turnChange:', currentPlayer.userId);
+
 
     // Restart the timer for the next player
     startTurnTimer(roomId);
@@ -256,21 +258,23 @@ const startTurnTimer = (roomId) => {
       // Emit move made and turn change
       io.to(roomId).emit('moveMade', { index, symbol: currentPlayer.symbol, playerName: currentPlayer.name, board: room.board });
 
-      // Change turn
-       room.currentPlayer = (room.currentPlayer + 1) % 2;
-       // Get the next player
-      const nextPlayer = room.players[room.currentPlayer];
+   // Change turn
+room.currentPlayer = (room.currentPlayer + 1) % 2;  // Move to the next player
 
-      // Ensure nextPlayer exists and has userId
-      if (!nextPlayer || !nextPlayer.userId) {
-        console.error('Error: Next player or userId is missing');
-        return;
-      }
+// Get the current player after the turn change
+const currentPlayer = room.players[room.currentPlayer];
 
-      // Emit turn change only once
-      io.to(roomId).emit('turnChange', nextPlayer.userId);
+// Ensure currentPlayer exists and has userId
+if (!currentPlayer || !currentPlayer.userId) {
+  console.error('Error: Current player or userId is missing');
+  return;
+}
 
-      startTurnTimer(roomId); // Restart timer for next player
+// Emit turn change with the current player's userId
+io.to(roomId).emit('turnChange', currentPlayer.userId);
+
+startTurnTimer(roomId); // Restart timer for next player
+
 
       // Start the turn timeout for the next player
       // room.turnTimeout = setTimeout(() => {
