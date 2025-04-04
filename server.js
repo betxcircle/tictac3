@@ -231,6 +231,14 @@ const startTurnTimer = (roomId) => {
   const currentPlayerIndex = room.currentPlayer % 2;
   const currentPlayer = room.players[currentPlayerIndex];
 
+     // Check if currentPlayer exists and has userId
+  if (currentPlayer && currentPlayer.hasOwnProperty('userId')) {
+    console.log('Current player userId:', currentPlayer.userId);
+  } else {
+    console.error('Error: currentPlayer is missing userId');
+    return socket.emit('invalidMove', 'Invalid player state');
+  }
+
   // Check if there's only one player in the room
   if (room.players.length < 2) {
     return socket.emit('invalidMove', 'Waiting for another player to join');
@@ -250,8 +258,16 @@ const startTurnTimer = (roomId) => {
 
       // Change turn
        room.currentPlayer = (room.currentPlayer + 1) % 2;
-      // io.to(roomId).emit('turnChange', room.currentPlayer % 2);
-      const nextPlayer = room.players[room.currentPlayer % 2];
+       // Get the next player
+      const nextPlayer = room.players[room.currentPlayer];
+
+      // Ensure nextPlayer exists and has userId
+      if (!nextPlayer || !nextPlayer.userId) {
+        console.error('Error: Next player or userId is missing');
+        return;
+      }
+
+      // Emit turn change only once
       io.to(roomId).emit('turnChange', nextPlayer.userId);
 
       startTurnTimer(roomId); // Restart timer for next player
