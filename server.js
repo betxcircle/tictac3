@@ -49,8 +49,17 @@ socket.on("joinRoom", async ({ playerName, userId, amount, expoPushToken }) => {
 
     if (room) {
         console.log(`🔍 Found an existing room: ${room.roomId} with ${room.players.length} players.`);
+
+        // 🧼 If it's a reused room, reset the state (clean slate)
+        if (room.players.length === 0) {
+            console.log(`♻️ Resetting old room ${room.roomId} to fresh state`);
+            room.board = Array(16).fill(null);
+            room.currentPlayer = 0;
+            room.startingPlayer = 0;
+        }
+
     } else {
-        // No available room, create a new one
+        // No room? Create one
         const newRoomId = generateRoomId();
         console.log(`🆕 Creating a new Room with ID: ${newRoomId}`);
 
@@ -62,6 +71,7 @@ socket.on("joinRoom", async ({ playerName, userId, amount, expoPushToken }) => {
             startingPlayer: 0,
             amount,
         };
+
         activeRooms[newRoomId] = room;
     }
 
