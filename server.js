@@ -415,7 +415,7 @@ console.log('Winner balance updated successfully');
 
         io.to(roomId).emit('newGame', 
                              { message: "The game has been reset due to a draw. New game starting!",
-                              startingPlayer: room.startingPlayer 
+                                startingPlayer: room.players[room.startingPlayer].userId, // 🟢 use userId
                              });
       }
     } else {
