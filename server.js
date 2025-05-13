@@ -497,7 +497,6 @@ function generateRoomId() {
   return Math.random().toString(36).substr(2, 9); // Generate a random alphanumeric string
 }
 
-const checkWin = (board) => {
   const winningLines = [
     // Rows
     [0, 1, 2, 3],
@@ -519,11 +518,11 @@ const checkWin = (board) => {
   for (let line of winningLines) {
     const [a, b, c, d] = line;
     if (board[a] && board[a] === board[b] && board[a] === board[c] && board[a] === board[d]) {
-      return line;  // Return the winning line (the indices)
+      return board[a];
     }
   }
 
-  return null;  // No win, return null
+  return null;
 };
 
 
