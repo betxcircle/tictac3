@@ -497,6 +497,7 @@ function generateRoomId() {
   return Math.random().toString(36).substr(2, 9); // Generate a random alphanumeric string
 }
 
+const checkWin = (board) => {
   const winningLines = [
     // Rows
     [0, 1, 2, 3],
