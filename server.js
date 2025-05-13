@@ -518,7 +518,8 @@ const checkWin = (board) => {
   for (let line of winningLines) {
     const [a, b, c] = line;
     if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-      return line;  // Return the winning line
+         return board[a];
+      //return line;  // Return the winning line
       //return board[a]
     }
   }
