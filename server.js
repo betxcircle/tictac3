@@ -288,13 +288,18 @@ const startTurnTimer = (roomId) => {
 
     startTurnTimer(roomId); // Restart timer
       
-      const winnerSymbol = checkWin(room.board);
+      //const winnerSymbol = checkWin(room.board);
+      const winResult = checkWin(room.board);
 
-      if (winnerSymbol) {
+     // if (winnerSymbol) 
+     if (winResult) {
+        const { winnerSymbol, winningLine } = winResult;
         clearTimeout(room.turnTimeout); // **Stop turn timer if someone wins**
         
         const winnerPlayer = room.players.find(player => player.symbol === winnerSymbol);
         const loserPlayer = room.players.find(player => player.symbol !== winnerSymbol);
+
+         console.log(`🏆 Player ${winnerPlayer.name} won using line: ${winningLine}`);
       
         if (winnerPlayer && loserPlayer) {
           const winnerUserId = winnerPlayer.userId;
@@ -324,6 +329,12 @@ console.log('Winner balance updated successfully');
           //   loserUserId, 
           //   loserPlayer 
           // });
+           io.to(roomId).emit('gameWon', {
+    winner: winnerPlayer.name,
+    winnerId: winnerPlayer.userId,
+    winningLine,
+    board: room.board
+  });
              // Emit different events for winner and loser
   io.to(winnerPlayer.socketId).emit('winnerScreen', { 
     result: gameResult, 
@@ -504,11 +515,11 @@ const checkWin = (board) => {
     [4, 5, 6], [5, 6, 7],
     [8, 9, 10], [9, 10, 11],
     [12, 13, 14], [13, 14, 15],
-    
+
     // Columns
     [0, 4, 8], [1, 5, 9], [2, 6, 10], [3, 7, 11],
     [4, 8, 12], [5, 9, 13], [6, 10, 14], [7, 11, 15],
-    
+
     // Diagonals
     [0, 5, 10], [1, 6, 11], [2, 7, 12],
     [3, 6, 9], [4, 9, 14], [5, 10, 15],
@@ -518,14 +529,13 @@ const checkWin = (board) => {
   for (let line of winningLines) {
     const [a, b, c] = line;
     if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-         return board[a];
-      //return line;  // Return the winning line
-      //return board[a]
+      return { winnerSymbol: board[a], winningLine: line };
     }
   }
 
   return null;
 };
+
 
 
 
