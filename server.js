@@ -218,7 +218,7 @@ const startTurnTimer = (roomId) => {
 
     // Delay restart of the timer slightly
     setTimeout(() => startTurnTimer(roomId), 500);
-  }, 3000);
+  }, 5000);
 };
 
 
