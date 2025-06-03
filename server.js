@@ -53,7 +53,7 @@ socket.on("joinRoom", async ({ playerName, userId, amount, expoPushToken }) => {
         // 🧼 If it's a reused room, reset the state (clean slate)
         if (room.players.length === 0) {
             console.log(`♻️ Resetting old room ${room.roomId} to fresh state`);
-            room.board = Array(16).fill(null);
+            room.board = Array(9).fill(null);
             room.currentPlayer = 0;
             room.startingPlayer = 0;
         }
@@ -66,7 +66,7 @@ socket.on("joinRoom", async ({ playerName, userId, amount, expoPushToken }) => {
         room = {
             roomId: newRoomId,
             players: [],
-            board: Array(16).fill(null),
+            board: Array(9).fill(null),
             currentPlayer: 0,
             startingPlayer: 0,
             amount,
@@ -420,7 +420,7 @@ console.log('Winner balance updated successfully');
         });
 
         // Reset the game state for a new game
-        room.board = Array(16).fill(null);
+        room.board = Array(9).fill(null);
         room.startingPlayer = (room.startingPlayer + 1) % 2;
         room.currentPlayer = room.startingPlayer;
 
